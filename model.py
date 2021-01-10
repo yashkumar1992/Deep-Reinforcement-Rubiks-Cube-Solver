@@ -173,7 +173,7 @@ class Agent():
     def update_online(self, loss, output):
         self.online.network.zero_grad()
 
-        output.backward()
+        output.backward(output)
 
         for param in online.parameters():
             grad = param.grad
