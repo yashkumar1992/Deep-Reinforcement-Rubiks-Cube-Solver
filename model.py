@@ -175,7 +175,7 @@ class Agent():
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
-            return -5
+            return -1
         else:
             return 20
 
@@ -485,12 +485,11 @@ number_of_tests = 5000
 #    print("Found one")
 # exit(0)
 
-agent = Agent(online, ACTIONS, alpha=1e-04, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
 
 
 #testbefore = Test(3, agent.online, agent.device)
 #print(testbefore.solver_with_info(number_of_tests))
-
 
 
 cube = pc.Cube()
@@ -504,7 +503,7 @@ print(f"Online training is set to {agent.online.training} and Target training is
 
 
 agent.learn(replay_time=0, replay_shuffle_range=3,
-            replay_chance=0.0, n_steps=7, epoch_time=1_000, epochs=700)
+            replay_chance=0.0, n_steps=7, epoch_time=1_000, epochs=10)
 agent.online.eval()
 print(f"Finished training and Online training is set to {agent.online.training} and Target training is set to {agent.target.training}")
 test = Test(3, agent.online, agent.device)
