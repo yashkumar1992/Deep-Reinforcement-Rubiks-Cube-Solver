@@ -329,6 +329,7 @@ class Agent():
             #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
             print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
             print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
+            print(test.solver_with_info(100))
 
 
 class Generator():
@@ -436,51 +437,101 @@ class Test():
                 break
 
     def solver_with_info(self, number_of_tests=100):
+        self.win_counter = 0
+        self.win_act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         for _ in range(number_of_tests):
             self.solve_with_info()
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
 
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-#device = torch.device('cpu')
-print(device)
+import time
+
+start_time = time.perf_counter()
+######################################################################################################################################################################################
 
 
-param = torch.load('./layer_3_training_3_000_000')
-
-online = Model([288], [144, 72, 36, 18], [12]).to(device)
-
-online.load_state_dict(param)
-online.eval()
-
-
+"""
 number_of_tests = 5000
-#test1 = Test(2, online, device)
-# print(test1.solver(number_of_tests))
-#
-# if test1.win_counter/number_of_tests >= 0.06:
-#    torch.save(online.state_dict(), "./initially_good")
-#    print("Found one")
-#exit(0)
 
-agent = Agent(online, ACTIONS, alpha=1e-08, device=device)
-cube = pc.Cube()
-cube("R R U")
-input = torch.from_numpy(one_hot_code(cube)).to(device)
-before = agent.online(input)
-agent.learn(replay_time=100_000, replay_shuffle_range=3,
-            replay_chance=0.3, n_steps=7, epoch_time=10_000, epochs=100)
-test = Test(3, agent.online, agent.device)
+while True
+    test1 = Test(2, online, device)
+    print(test1.solver(number_of_tests))
 
-after = agent.online(input)
-
-print(f"before\n{before} vs after\n{after}")
-print(test.solver_with_info(number_of_tests))
-
-
-torch.save(agent.online.state_dict(), "./layer_3_training_4_000_000")
+    if test1.win_counter/number_of_tests >= 0.06:
+        torch.save(online.state_dict(), "./initially_good")
+        print("Found one")
+        print(test1.solver(number_of_tests * 5))
+        break
 
 exit(0)
+"""
+
+####################
+
+
+# choose and print optimal device
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+print(device)
+
+# Load model
+param = torch.load('./initially_good_2moves')
+
+# Initialize model
+online = Model([288], [144, 72, 36, 18], [12]).to(device)
+
+# define agent variables
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+
+# define and mutate test cube to show example of weigts
+cube = pc.Cube()
+cube("R R")
+
+# define cube as input
+input = torch.from_numpy(one_hot_code(cube)).to(device)
+
+# find weights before training
+before = agent.online(input)
+
+# define mass test parameters
+test = Test(2, agent.online, agent.device)
+
+pre_test_time = time.perf_counter()
+
+# print mass test results
+print(test.solver_with_info(1000))
+
+pre_learn_time = time.perf_counter()
+print(f"test time = {pre_learn_time - pre_test_time}")
+
+#exit(0)
+
+# start learning and define parameters to learn based on
+agent.learn(replay_time=60_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=2, epoch_time=1_000, epochs=5)
+
+post_learn_time = time.perf_counter()
+
+# find weights after training
+after = agent.online(input)
+
+# print weights from before and after training
+print(f"before\n{before} vs after\n{after}")
+
+# prints results of mass testing after training
+print(test.solver_with_info(5000))
+
+done_time = time.perf_counter()
+
+print(f"learn time = {post_learn_time-pre_learn_time}")
+print(f"total time {done_time}")
+
+torch.save(agent.online.state_dict(), "./layer_2___")
+
+exit(0)
+
+
+
+
 
 # print(list(online.named_parameters()))
 with torch.no_grad():
