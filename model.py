@@ -444,10 +444,6 @@ class Test():
             self.solve_with_info()
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
 
-
-import time
-
-start_time = time.perf_counter()
 ######################################################################################################################################################################################
 
 
@@ -496,20 +492,16 @@ before = agent.online(input)
 # define mass test parameters
 test = Test(2, agent.online, agent.device)
 
-pre_test_time = time.perf_counter()
 
 # print mass test results
 print(test.solver_with_info(1000))
 
-pre_learn_time = time.perf_counter()
-print(f"test time = {pre_learn_time - pre_test_time}")
 
 #exit(0)
 
 # start learning and define parameters to learn based on
 agent.learn(replay_time=60_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=2, epoch_time=1_000, epochs=5)
 
-post_learn_time = time.perf_counter()
 
 # find weights after training
 after = agent.online(input)
@@ -519,11 +511,6 @@ print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
 print(test.solver_with_info(5000))
-
-done_time = time.perf_counter()
-
-print(f"learn time = {post_learn_time-pre_learn_time}")
-print(f"total time {done_time}")
 
 torch.save(agent.online.state_dict(), "./layer_2___")
 
