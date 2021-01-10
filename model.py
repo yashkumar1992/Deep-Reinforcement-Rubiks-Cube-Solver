@@ -30,11 +30,28 @@ def mlp(sizes, activation=nn.PReLU(init=1), output_activation=nn.Identity()):
     return nn.Sequential(*layers)
 
 
+def mlp_dropout(sizes, activation=nn.PReLU(init=1), output_activation=None, p=0.0):
+    # Build a feedforward neural network.
+    layers = []
+    for j in range(len(sizes)-1):
+        if j < len(sizes) - 2:
+            act = activation
+            layers += [nn.Linear(sizes[j], sizes[j+1]), nn.Dropout(p=p),
+                       act]
+        elif output_activation is None:
+            layers += [nn.Linear(sizes[j], sizes[j+1])]
+        else:
+            act = output_activation
+            layers += [nn.Linear(sizes[j], sizes[j+1]), act]
+    return nn.Sequential(*layers)
+
+
 class Model(nn.Module):
-    def __init__(self, initial, other, action_num):
+    def __init__(self, initial, other, action_num, dropout_rate=0.0):
         super(Model, self).__init__()
         self.sizes = initial + other + action_num
-        self.network = mlp(sizes=initial+other+action_num)
+        self.network = mlp_dropout(
+            sizes=initial+other+action_num, p=dropout_rate)
 
     def forward(self, state):
         return self.network(state)
@@ -94,27 +111,26 @@ class Agent():
             return False
 
     # Looks at function... "Ah yes, we have reached the pinacle of coding"
-#    def get_sticky_act(self, last_action):
-#        return last_action
-#
-#    def get_sticky_act_val(self, last_action, input, network):
-#        if network is Network.Online:
-#            return (last_action, self.online(input)[last_action])
-#        else:
-#            return (last_action, self.target(input)[last_action])
+    #    def get_sticky_act(self, last_action):
+    #        return last_action
+    #
+    #    def get_sticky_act_val(self, last_action, input, network):
+    #        if network is Network.Online:
+    #            return (last_action, self.online(input)[last_action])
+    #        else:
+    #            return (last_action, self.target(input)[last_action])
 
-
-#    def get_act_val(self, input, last_action, network):
-#        if np.random.random() >= 0.5:
-#            if self.epsilon_greedy(self.epsilon):
-#                return self.get_epsilon_act_val(input, network)
-#            else:
-#                return self.get_best_act_val(input, network)
-#        else:
-#            if self.sticky_action(self.sticky) and last_action is not None:
-#                return self.get_sticky_act_val(last_action, input, network)
-#            else:
-#                return self.get_best_act_val(input, network)
+    #    def get_act_val(self, input, last_action, network):
+    #        if np.random.random() >= 0.5:
+    #            if self.epsilon_greedy(self.epsilon):
+    #                return self.get_epsilon_act_val(input, network)
+    #            else:
+    #                return self.get_best_act_val(input, network)
+    #        else:
+    #            if self.sticky_action(self.sticky) and last_action is not None:
+    #                return self.get_sticky_act_val(last_action, input, network)
+    #            else:
+    #                return self.get_best_act_val(input, network)
 
     def get_best_act(self, input, network):
         if network is Network.Online:
@@ -153,15 +169,15 @@ class Agent():
     #
     def experience_reward(self, suggested, correct):
         if suggested == correct:
-            return 7
+            return 10
         else:
-            return -20
+            return -15
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
             return -5
         else:
-            return 10
+            return 20
 
     def n_tpd_iter(self, N, reward_vec, q_n, q_t):
         q_diff_gamma = self.gamma**N * q_n - q_t
@@ -327,8 +343,10 @@ class Agent():
             self.update_target_net()
             epochs_trained += 1
             #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
-            print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
-            print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
+            print(
+                f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
+            print(self.online(torch.from_numpy(one_hot_code(
+                generator.generate_cube(replay_shuffle_range))).to(self.device)))
 
 
 class Generator():
@@ -430,6 +448,7 @@ class Test():
                 None
             else:
                 self.win_counter += 1
+                print(trajectory)
                 for act in trajectory:
                     # print(ACTIONS.index(act))
                     self.win_act_occ_list[ACTIONS.index(act)] += 1
@@ -438,7 +457,8 @@ class Test():
     def solver_with_info(self, number_of_tests=100):
         for _ in range(number_of_tests):
             self.solve_with_info()
-        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
+            # add so we also print std so we can see how even the distribution of moves are
+        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list} all act std = {np.std(np.array(self.act_occ_list))}"
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -446,9 +466,11 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 
-param = torch.load('./layer_3_training_3_000_000')
+param = torch.load('./layer_massive_dropout')
 
-online = Model([288], [144, 72, 36, 18], [12]).to(device)
+online = Model([288], [288, 180, 170, 160, 150,
+                       144, 72, 36, 18], [12], dropout_rate=0.5).to(device)
+
 
 online.load_state_dict(param)
 online.eval()
@@ -461,24 +483,38 @@ number_of_tests = 5000
 # if test1.win_counter/number_of_tests >= 0.06:
 #    torch.save(online.state_dict(), "./initially_good")
 #    print("Found one")
-#exit(0)
+# exit(0)
 
-agent = Agent(online, ACTIONS, alpha=1e-08, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-04, device=device)
+
+
+#testbefore = Test(3, agent.online, agent.device)
+#print(testbefore.solver_with_info(number_of_tests))
+
+
+
 cube = pc.Cube()
 cube("R R U")
 input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
-agent.learn(replay_time=100_000, replay_shuffle_range=3,
-            replay_chance=0.3, n_steps=7, epoch_time=10_000, epochs=100)
-test = Test(3, agent.online, agent.device)
 
+agent.online.train()
+
+print(f"Online training is set to {agent.online.training} and Target training is set to {agent.target.training}")
+
+
+agent.learn(replay_time=0, replay_shuffle_range=3,
+            replay_chance=0.0, n_steps=7, epoch_time=1_000, epochs=700)
+agent.online.eval()
+print(f"Finished training and Online training is set to {agent.online.training} and Target training is set to {agent.target.training}")
+test = Test(3, agent.online, agent.device)
 after = agent.online(input)
 
 print(f"before\n{before} vs after\n{after}")
 print(test.solver_with_info(number_of_tests))
 
 
-torch.save(agent.online.state_dict(), "./layer_3_training_4_000_000")
+torch.save(agent.online.state_dict(), "./layer_massive_dropout")
 
 exit(0)
 
@@ -599,4 +635,3 @@ def update_weights(self):
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
-
