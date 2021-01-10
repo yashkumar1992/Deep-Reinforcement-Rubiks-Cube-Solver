@@ -482,10 +482,6 @@ class Test():
 
 
 
-
-import time
-
-start_time = time.perf_counter()
 ######################################################################################################################################################################################
 # 
 """
@@ -539,19 +535,15 @@ before = agent.online(input)
 # define mass test parameters
 test = Test(4, agent.online, agent.device)
 
-pre_test_time = time.perf_counter()
 
 # print mass test results
 print(test.solver_with_info(1000))
 
-pre_learn_time = time.perf_counter()
-print(f"test time = {pre_learn_time - pre_test_time}")
 
 
 # start learning and define parameters to learn based on
 agent.learn(replay_time=1_000_000, replay_shuffle_range=4, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
 
-post_learn_time = time.perf_counter()
 
 # find weights after training
 after = agent.online(input)
