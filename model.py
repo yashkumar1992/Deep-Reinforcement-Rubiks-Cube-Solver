@@ -542,9 +542,7 @@ test = Test(4, agent.online, agent.device)
 pre_test_time = time.perf_counter()
 
 # print mass test results
-#print(test.solver_with_info(1000))
-
-#exit(0)
+print(test.solver_with_info(1000))
 
 pre_learn_time = time.perf_counter()
 print(f"test time = {pre_learn_time - pre_test_time}")
@@ -576,14 +574,6 @@ exit(0)
 
 
 
-# layer_2___2paths
-
-
-
-
-
-
-"""
 # print(list(online.named_parameters()))
 with torch.no_grad():
     target = deepcopy(online)
