@@ -362,9 +362,9 @@ class Agent:
 
             #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
 
-            if test and epoch % 5 == 0:
-                num_tests = 100
-                print(tester.solver(num_tests))
+            if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
+                num_tests = 1_000
+                print(tester.solver_with_info(num_tests))
                 if alpha_update_frquency[0]:
 
                     self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range)
@@ -399,7 +399,7 @@ class AlphaUpdater:
         return w_avg/w_length
 
     def stagnated(self):
-        if np.std(np.array(self.buffer)[-self.frequency:]) < 0.15:
+        if np.std(np.array(self.buffer)[-self.frequency:]) < 0.08:
             return True
         else:
             return False
@@ -411,9 +411,9 @@ class AlphaUpdater:
         if self.counter == self.frequency:
             if self.stagnated():
                 if alpha < 10**(-6.5):
-                    alpha = alpha * 10**2
+                    alpha = alpha * 10**3
                 else:
-                    alpha = alpha * 10**(-2)
+                    alpha = alpha * 10**(-3)
             else:
                 w_mean = self.weighed_average(phi)
                 #std = np.std(self.buffer)
@@ -525,6 +525,7 @@ class Test:
                 break
 
     def solver(self, number_of_tests=100):
+        self.win_counter = 0
         for _ in range(number_of_tests):
             self.solve()
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
@@ -594,11 +595,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # Initialize model
-online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
+#online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
+online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./layer_1")
-online.load_state_dict(param)
+#param = torch.load("./layer_1")
+#online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
@@ -615,7 +617,8 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(3, agent.online, agent.device)
+t_depth = 5
+test = Test(5, agent.online, agent.device)
 
 
 # print mass test results
@@ -627,9 +630,9 @@ agent.online.train()
 # start learning and define parameters to learn based on
 agent.learn(
     replay_time=1_000_000,
-    replay_shuffle_range=3,
+    replay_shuffle_range=5,
     replay_chance=0.0,
-    n_steps=2,
+    n_steps=4,
     epoch_time=1_000,
     epochs=1_000, 
     test=True, 
@@ -647,7 +650,7 @@ print(f"before\n{before} vs after\n{after}")
 print(test.solver_with_info(1000))
 
 
-torch.save(agent.online.state_dict(), "./layer_1")
+torch.save(agent.online.state_dict(), "./layer_3_std_05")
 
 exit(0)
 
