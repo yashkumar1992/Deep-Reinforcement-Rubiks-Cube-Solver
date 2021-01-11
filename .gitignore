@@ -129,6 +129,6 @@ dmypy.json
 .pyre/
 
 # Added by us
-#tmp.py
+tmp.py
 .vscode/
 layer*
