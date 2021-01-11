@@ -534,7 +534,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(4, agent.online, agent.device)
+test = Test(3, agent.online, agent.device)
 
 
 # print mass test results
@@ -543,7 +543,7 @@ print(test.solver_with_info(1000))
 
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=1_000_000, replay_shuffle_range=4, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
+agent.learn(replay_time=1_000_000, replay_shuffle_range=3, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
 
 
 # find weights after training
@@ -685,11 +685,10 @@ def update_weights(self):
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
-; theta_target ))
+#; theta_target ))
 
 # TPD = loss?
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
-"""
