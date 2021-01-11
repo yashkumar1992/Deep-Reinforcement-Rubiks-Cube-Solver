@@ -202,11 +202,16 @@ class Agent():
         for param in self.target.parameters():
             param.requires_grad = False
 
-    def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10):
-        generator = Generator()
-        epochs_trained = 0
+    def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False):
 
-        for _ in range(epochs):
+        if test:
+            tester = Test(replay_shuffle_range, self.online, self.device)
+        else:
+            tester = None
+
+        generator = Generator()
+
+        for epoch in range(epochs):
 
             #            last_action = None
             time = 0
@@ -341,10 +346,12 @@ class Agent():
                         break
                     time += acc
             self.update_target_net()
-            epochs_trained += 1
-            #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
             print(
-                f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
+                f"epochs trained: {epoch} of {epochs}, {(epoch/epochs) * 100}%")
+            
+            if test:
+                print(tester.solver_with_info(100))
+
             print(self.online(torch.from_numpy(one_hot_code(
                 generator.generate_cube(replay_shuffle_range))).to(self.device)))
 
