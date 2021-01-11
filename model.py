@@ -650,7 +650,7 @@ print(f"before\n{before} vs after\n{after}")
 print(test.solver_with_info(1000))
 
 
-torch.save(agent.online.state_dict(), "./layer_3_std_05")
+torch.save(agent.online.state_dict(), "./layer_3_std_08")
 
 exit(0)
 
