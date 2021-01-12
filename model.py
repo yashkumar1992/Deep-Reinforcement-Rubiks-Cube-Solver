@@ -621,7 +621,7 @@ agent.online.train()
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=0,
+    replay_time=100_000,
     replay_shuffle_range=5,
     replay_chance=0.2,
     n_steps=4,
