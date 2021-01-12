@@ -328,10 +328,10 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            diff_vec = table_online - reward_vector
-                            loss = reward + self.gamma * table_target[act] - table_online[act]
+                            loss_vec = table_online - reward_vector
+                            TD = reward + self.gamma * table_target[act] - table_online[act]
 
-                            self.update_online(loss, TD_vec)
+                            self.update_online(TD, loss_vec)
 
                             cube(correct_act)
 
