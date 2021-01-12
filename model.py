@@ -705,9 +705,9 @@ print(f"before\n{before} vs after\n{after}")
 # prints results of mass testing after training
 
 tester1 = Test(1, agent.online, agent.device)
-tester1 = Test(2, agent.online, agent.device)
-tester1 = Test(3, agent.online, agent.device)
-tester1 = Test(4, agent.online, agent.device)
+tester2 = Test(2, agent.online, agent.device)
+tester3 = Test(3, agent.online, agent.device)
+tester4 = Test(4, agent.online, agent.device)
 
 print(tester1.solver_with_info(1000))
 print(tester2.solver_with_info(1000))
