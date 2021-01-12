@@ -170,7 +170,7 @@ class Agent:
         if suggested == correct:
             return (2, reward_vector)
         else:
-            return (-60, reward_vector)
+            return (-30, reward_vector)
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -184,13 +184,6 @@ class Agent:
         for x in range(N):
             N_TPD += self.gamma ** x * reward_vec[x] + q_diff_gamma
         return N_TPD
-
-
-    # _,_,_ hvad er ændringen og hvad er gennemsnittet og spredningen
-    # class AlphaBuffer():
-    # __init__ 
-    # agent .. agent.alpha = 1e-06
- 
 
     def update_online(self, loss, output):
         self.online.network.zero_grad()
@@ -208,15 +201,15 @@ class Agent:
         for param in self.target.parameters():
             param.requires_grad = False
 
-    def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frquency=(False, 5)):
+    def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
         if test:
             tester = Test(replay_shuffle_range, self.online, self.device)
         else:
             tester = None
         
-        if alpha_update_frquency[0]:
-            alpha_updater = AlphaUpdater(alpha_update_frquency[1], replay_shuffle_range)
+        if alpha_update_frequency[0]:
+            alpha_updater = AlphaUpdater(alpha_update_frequency[1], replay_shuffle_range)
         else:
             alpha_updater = None
         
@@ -299,7 +292,6 @@ class Agent:
 
                         input = torch.from_numpy(one_hot_code(cube)).to(self.device)
 
-                        # TODO: REMOVE LAST ACTION
                         act, act_val_q_online = self.get_act_val(
                             input, Network.Online)
 
@@ -326,7 +318,7 @@ class Agent:
                                 act = self.get_epsilon_act()
                                 # TODO: self.update_epsilon()
                             else:
-                                act = self.get_best_act(torch.from_numpy(one_hot_code(cube)).to( self.device), Network.Online)
+                                act = self.get_best_act(torch.from_numpy(one_hot_code(cube)).to(self.device), Network.Online)
 
                             # Do action and add 1 to the accumulator
                             cube(ACTIONS[act])
@@ -363,11 +355,11 @@ class Agent:
             #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
 
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
-                num_tests = 1_000
+                num_tests = 500
                 print(tester.solver_with_info(num_tests))
-                if alpha_update_frquency[0]:
+                if alpha_update_frequency[0]:
 
-                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range)
+                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
                     print(f"The new alpha is {self.alpha}")
 
             self.online.train()
@@ -399,7 +391,7 @@ class AlphaUpdater:
         return w_avg/w_length
 
     def stagnated(self):
-        if np.std(np.array(self.buffer)[-self.frequency:]) < 0.08:
+        if np.std(np.array(self.buffer)[-self.frequency:]) <= 0.05:
             return True
         else:
             return False
@@ -410,7 +402,7 @@ class AlphaUpdater:
         self.counter += 1
         if self.counter == self.frequency:
             if self.stagnated():
-                if alpha < 10**(-6.5):
+                if alpha <= 10**(-5):
                     alpha = alpha * 10**3
                 else:
                     alpha = alpha * 10**(-3)
@@ -418,12 +410,12 @@ class AlphaUpdater:
                 w_mean = self.weighed_average(phi)
                 #std = np.std(self.buffer)
 
-                a_alpha = self.andreas_fun(w_mean, current_depth)
+                #a_alpha = self.andreas_fun(w_mean, current_depth)
 
                 alpha = self.win_rate_fun(w_mean) * self.depth_fun(current_depth) 
 #                print(f"{self.win_rate_fun(w_mean)} * {self.depth_fun(current_depth)}") 
 #                print(f"Current depth {current_depth} and weighted win rate {w_mean}")
-                print(f"alpha K: {alpha}, alpha A: {a_alpha}")
+                #print(f"alpha K: {alpha}, alpha A: {a_alpha}")
 
             self.counter = 0
             return alpha
@@ -604,7 +596,7 @@ online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(
 online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-05, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -629,14 +621,14 @@ agent.online.train()
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=1_000_000,
+    replay_time=0,
     replay_shuffle_range=5,
-    replay_chance=0.0,
+    replay_chance=0.2,
     n_steps=4,
-    epoch_time=1_000,
-    epochs=1_000, 
+    epoch_time=10_000,
+    epochs=100, 
     test=True, 
-    alpha_update_frquency=(True, 5))
+    alpha_update_frequency=(True, 4))
 
 agent.online.eval()
 
@@ -650,7 +642,7 @@ print(f"before\n{before} vs after\n{after}")
 print(test.solver_with_info(1000))
 
 
-torch.save(agent.online.state_dict(), "./layer_3_std_08")
+torch.save(agent.online.state_dict(), "./layer_5")
 
 exit(0)
 
