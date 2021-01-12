@@ -165,8 +165,8 @@ class Agent:
     # updating the target network
     #
     def experience_reward(self, suggested, correct):
-        reward_vector = torch.full((len(self.actions),), -1).to(self.device)
-        reward_vector[ACTIONS.index(correct)] = 2
+        reward_vector = torch.full((len(self.actions),), -0.1).to(self.device)
+        reward_vector[ACTIONS.index(correct)] = 1.
         if suggested == correct:
             return (2, reward_vector)
         else:
@@ -203,7 +203,13 @@ class Agent:
 
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
+        optimizer = torch.optim.Adam(online.parameters(), lr=self.alpha)
+        Loss_fn = torch.nn.MSELoss(reduction='mean')
+
         if test:
+            tester1 = Test(1, self.online, self.device)
+            tester2 = Test(2, self.online, self.device)
+            tester3 = Test(3, self.online, self.device)
             tester = Test(replay_shuffle_range, self.online, self.device)
         else:
             tester = None
@@ -260,8 +266,9 @@ class Agent:
 
                         # calc loss vector
 
-                        loss_vec[i] = reward_vector + self.gamma * self.target(input) - self.online(input)
-                        loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
+                        output_avg = (self.gamma * self.target(input) + self.online(input))/2
+                        #loss_vec = reward_vector + self.gamma * self.target(input) - self.online(input)
+                        #loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
 
                         ######
 
@@ -269,14 +276,19 @@ class Agent:
                         replay_time -= 1
                         time += 1
 
+
+                        loss2 = Loss_fn(output_avg, reward_vector)
+                        loss2.backward()
+                        optimizer.step()  
+
                     # print(f"iunput maybe list = {online(input)}")
 
                     # MSE_loss = (self.online(input)-loss_vec)**2
 
                     # Update online weights based on loss (n_tpd)
                     # self.update_online(torch.mean(loss, 0), self.online(input)) #torch.mean(loss)
-
-                    self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
+                    
+                    #self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
                     # self.update_online(torch.mean(loss), act_val_q_online)
                 # NORMAL
                 else:
@@ -356,11 +368,14 @@ class Agent:
 
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
                 num_tests = 500
+                print(tester1.solver_with_info(num_tests))
+                print(tester2.solver_with_info(num_tests))
                 print(tester.solver_with_info(num_tests))
-                if alpha_update_frequency[0]:
-
-                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
-                    print(f"The new alpha is {self.alpha}")
+                print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
+                #if alpha_update_frequency[0]:
+                #
+                #    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
+                #    print(f"The new alpha is {self.alpha}")
 
             self.online.train()
 
@@ -462,7 +477,8 @@ class ReplayBuffer:
     def new_full_buffer(self, max_move_depth=10):
         for _ in range(self.capacity):
             # self.buffer.append(self.generate_moves(np.random.randint(1, max_move_depth)))
-            self.generate_moves(np.random.randint(1, max_move_depth + 1))
+            #self.generate_moves(np.random.randint(1, max_move_depth + 1))
+            self.generate_moves(max_move_depth + 1)
 
     # Genereates a cube based on a random move,
     # when unscrabeling, it should be done in the reverse order
@@ -538,6 +554,8 @@ class Test:
             self.act_occ_list[ACTIONS.index(action)] += 1
 
             if cube != SOLVED_CUBE:
+                #if i == self.move_depth-1:
+                #    print(f"{trajectory} vs {get_gen_trajectory_act_list}")
                 None
             else:
                 self.win_counter += 1
@@ -588,19 +606,19 @@ print(device)
 
 # Initialize model
 #online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
-online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
+online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-#param = torch.load("./layer_1")
-#online.load_state_dict(param)
+param = torch.load("./layer_3_new1_adam_v4")
+online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-08, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
-cube("B'")
+cube("B' U F")
 
 # define cube as input
 input = torch.from_numpy(one_hot_code(cube)).to(device)
@@ -609,12 +627,12 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 5
-test = Test(5, agent.online, agent.device)
+t_depth = 3
+test = Test(3, agent.online, agent.device)
 
 
 # print mass test results
-print(test.solver_with_info(1000))
+print(test.solver_with_info(500))
 
 agent.online.train()
 
@@ -622,10 +640,10 @@ agent.online.train()
 # start learning and define parameters to learn based on
 agent.learn(
     replay_time=100_000,
-    replay_shuffle_range=5,
+    replay_shuffle_range=3,
     replay_chance=0.2,
     n_steps=4,
-    epoch_time=10_000,
+    epoch_time=1_000,
     epochs=100, 
     test=True, 
     alpha_update_frequency=(True, 4))
@@ -639,15 +657,57 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(1000))
+print(test.solver_with_info(5000))
 
 
-torch.save(agent.online.state_dict(), "./layer_5")
+torch.save(agent.online.state_dict(), "./layer_3_new1_adam_v4")
 
 exit(0)
 
 ######################################################################################################################################################################################
+######################################################################################################################################################################################
+######################################################################################################################################################################################
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
 # print(list(online.named_parameters()))
 with torch.no_grad():
     target = deepcopy(online)
@@ -772,3 +832,4 @@ def update_weights(self):
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
+"""
