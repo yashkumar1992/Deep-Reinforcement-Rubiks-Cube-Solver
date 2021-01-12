@@ -672,7 +672,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 3
+t_depth = 5
 test = Test(t_depth, agent.online, agent.device)
 
 
@@ -684,12 +684,12 @@ agent.online.train()
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=100_000,
+    replay_time=1_000_000,
     replay_shuffle_range=t_depth,
     replay_chance=0.2,
     n_steps=4,
     epoch_time=1_000,
-    epochs=10, 
+    epochs=1_000, 
     test=True, 
     alpha_update_frequency=(False, 4),
     )
@@ -703,8 +703,18 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(5000))
 
+tester1 = Test(1, agent.online, agent.device)
+tester1 = Test(2, agent.online, agent.device)
+tester1 = Test(3, agent.online, agent.device)
+tester1 = Test(4, agent.online, agent.device)
+
+print(tester1.solver_with_info(1000))
+print(tester2.solver_with_info(1000))
+print(tester3.solver_with_info(1000))
+print(tester4.solver_with_info(1000))
+
+print(test.solver_with_info(5000))
 
 torch.save(agent.online.state_dict(), "./layer_5_adam")
 
