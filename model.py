@@ -303,13 +303,13 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            tpd = reward + self.gamma * val_target - val_online
+                            TD = reward + self.gamma * val_target - val_online
 
                             loss = table_online - reward_vector
                             
                             # -factor, because the step is taken in the direction of -step_size * factor
                             # and we want a step towards the steepest ascent
-                            self.update_online_adam(loss, factor=-tpd)
+                            self.update_online_adam(loss, factor=-TD)
                             cube(correct_act)
 
                             replay_time -= 1
@@ -328,7 +328,7 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            TD_vec = reward_vector + self.gamma * table_target - table_online
+                            diff_vec = table_online - reward_vector
                             loss = reward + self.gamma * table_target[act] - table_online[act]
 
                             self.update_online(loss, TD_vec)
@@ -659,7 +659,7 @@ online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 #online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=False)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -689,7 +689,7 @@ agent.learn(
     replay_chance=0.2,
     n_steps=4,
     epoch_time=1_000,
-    epochs=1_000, 
+    epochs=10, 
     test=True, 
     alpha_update_frequency=(False, 4),
     )
@@ -705,9 +705,9 @@ print(f"before\n{before} vs after\n{after}")
 # prints results of mass testing after training
 
 tester1 = Test(1, agent.online, agent.device)
-tester1 = Test(2, agent.online, agent.device)
-tester1 = Test(3, agent.online, agent.device)
-tester1 = Test(4, agent.online, agent.device)
+tester2 = Test(2, agent.online, agent.device)
+tester3 = Test(3, agent.online, agent.device)
+tester4 = Test(4, agent.online, agent.device)
 
 print(tester1.solver_with_info(1000))
 print(tester2.solver_with_info(1000))
