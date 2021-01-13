@@ -204,18 +204,18 @@ class Agent:
     # updating the target network
     #
     def experience_reward(self, suggested, correct):
-        reward_vector = torch.full((len(self.actions),), -0.1).to(self.device)
+        reward_vector = torch.full((len(self.actions),), 0.0).to(self.device)
         reward_vector[ACTIONS.index(correct)] = 1.
         if suggested == correct:
             return (2, reward_vector)
         else:
-            return (-2, reward_vector)
+            return (0, reward_vector)
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
-            return -1
+            return 0
         else:
-            return 10
+            return 2
 
     def n_tpd_iter(self, N, reward_vec, q_n, q_t):
         q_diff_gamma = self.gamma ** N * q_n - q_t
@@ -684,7 +684,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 1
+t_depth = 4
 test = Test(t_depth, agent.online, agent.device)
 
 
@@ -696,7 +696,7 @@ agent.online.train()
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=0,
+    replay_time=10_000,
     replay_shuffle_range=t_depth,
     replay_chance=0.0,
     n_steps=4,
