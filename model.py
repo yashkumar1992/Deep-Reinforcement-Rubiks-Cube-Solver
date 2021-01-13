@@ -350,7 +350,7 @@ class Agent:
 
                         input = torch.from_numpy(one_hot_code(cube)).to(self.device)
 
-                        act, act_val_q_online = self.get_act_val(input, Network.Online)
+                        act, val_online = self.get_act_val(input, Network.Online)
 
                         # Do action and add 1 to the accumulator
                         cube(ACTIONS[act])
@@ -362,20 +362,25 @@ class Agent:
                         reward_vector[0] = self.normal_reward(cube)
 
                         if not (cube != SOLVED_CUBE):
-                            act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online),)
-                            n_tpd = self.n_tpd_iter(1, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd, act_val_q_online)
+                            val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target)
+                            n_tpd = self.n_tpd_iter(1, reward_vector, val_target, val_online)
+                            if self.adam_optim is None:
+                                self.update_online(n_tpd, val_online)
+                            else:
+                                self.update_online_adam(val_online, n_tpd)
                             break
                         else:
                             None
 
                         for i in range(1, n_steps - 1):
                             # Select action
+                            input = None
                             if self.epsilon_greedy():
                                 act = self.get_epsilon_act()
                                 # TODO: self.update_epsilon()
                             else:
-                                act = self.get_best_act(torch.from_numpy(one_hot_code(cube)).to(self.device), Network.Online)
+                                input = torch.from_numpy(one_hot_code(cube)).to(self.device) 
+                                act = self.get_best_act(input, Network.Online)
 
                             # Do action and add 1 to the accumulator
                             cube(ACTIONS[act])
@@ -387,18 +392,25 @@ class Agent:
                             # If Cube is solved stop prematurely
                             # and update the weights
                             if not (cube != SOLVED_CUBE):
-                                input = torch.from_numpy(one_hot_code(cube)).to(self.device)
-                                act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online))
-                                n_tpd = self.n_tpd_iter(i, reward_vector, act_val_q_target, act_val_q_online)
-                                self.update_online(n_tpd, act_val_q_online)
+                                if input is None:
+                                    input = torch.from_numpy(one_hot_code(cube)).to(self.device)
+                                val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target)
+                                n_tpd = self.n_tpd_iter(i, reward_vector, val_target, val_online)
+                                if self.adam_optim is None:
+                                    self.update_online(n_tpd, val_online)
+                                else:
+                                    self.update_online_adam(val_online, n_tpd)
                                 break
 
                             # TODO: if cube is solved then stop
                         else:
                             input = torch.from_numpy(one_hot_code(cube)).to(self.device)
-                            act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online)) 
-                            n_tpd = self.n_tpd_iter(n_steps, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd, act_val_q_online)
+                            val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target) 
+                            n_tpd = self.n_tpd_iter(n_steps, reward_vector, val_target, val_online)
+                            if self.adam_optim is None:
+                                self.update_online(n_tpd, val_online)
+                            else:
+                                self.update_online_adam(val_online, n_tpd)
                             continue
                         break
                     time += acc
@@ -659,7 +671,7 @@ online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 #online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=False)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -672,7 +684,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 5
+t_depth = 1
 test = Test(t_depth, agent.online, agent.device)
 
 
@@ -684,9 +696,9 @@ agent.online.train()
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=1_000_000,
+    replay_time=0,
     replay_shuffle_range=t_depth,
-    replay_chance=0.2,
+    replay_chance=0.0,
     n_steps=4,
     epoch_time=1_000,
     epochs=10, 
